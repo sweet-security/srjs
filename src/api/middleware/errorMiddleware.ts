@@ -6,7 +6,7 @@ interface ConfluenceResponse extends Omit<Response, 'data'> {
   }
 }
 
-class ResponseError extends Error {
+export class ResponseError extends Error {
   status: number
   unauthorized: boolean
   url: string
@@ -30,7 +30,7 @@ const errorMiddleware: Middleware = ({ clientId }) => ({
     new Promise((resolve, reject) =>
       next()
         .then(resolve)
-        .catch((response: Response) => reject(new ResponseError(clientId, response))),
+        .catch((response: Response) => reject(new ResponseError(clientId ?? '', response))),
     ),
 })
 

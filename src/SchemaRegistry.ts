@@ -11,6 +11,7 @@ import {
   ConfluentSchemaRegistryArgumentError,
   ConfluentSchemaRegistryCompatibilityError,
   ConfluentSchemaRegistryValidationError,
+  ResponseError,
 } from './errors'
 import {
   Schema,
@@ -138,10 +139,10 @@ export default class SchemaRegistry {
         )
       }
     } catch (error) {
-      if (error.status !== 404) {
-        throw error
-      } else {
+      if (error instanceof ResponseError && error.status === 404) {
         isFirstTimeRegistration = true
+      } else {
+        throw error
       }
     }
 
@@ -177,7 +178,7 @@ export default class SchemaRegistry {
         return `key=${key}&value=${value}`
       })
       .join('&')
-    const response = await this.api.Subject.metadata({ subject, metadata })
+    const response = await this.api.Subject.metadata({ subject, key: queryParamsString })
     const { id } = response.data<{
       subject: string
       version: number
@@ -379,7 +380,7 @@ export default class SchemaRegistry {
 
       return id
     } catch (error) {
-      if (error.status && error.status === 404) {
+      if (error instanceof ResponseError && error.status && error.status === 404) {
         throw new ConfluentSchemaRegistryError(error)
       }
 
@@ -396,7 +397,7 @@ export default class SchemaRegistry {
 
   private getSchemaOriginRequest(registryId: number) {
     // ensure that cache-misses result in a single origin request
-    if (this.cacheMissRequests[registryId]) {
+    if (!!this.cacheMissRequests[registryId]) {
       return this.cacheMissRequests[registryId]
     } else {
       const request = this.api.Schema.find({ id: registryId }).finally(() => {

@@ -21,7 +21,7 @@ interface Field {
 
 let cache: any
 const merge = Object.assign
-const isObject = (obj: unknown): obj is Obj => obj && typeof obj === 'object'
+const isObject = (obj: unknown): obj is Obj => (!!obj) && typeof obj === 'object'
 const isIterable = (obj: unknown): obj is Iterable =>
   isObject(obj) && typeof obj.map !== 'undefined'
 const isFieldArray = (field: unknown): field is Field =>
@@ -97,7 +97,7 @@ export async function avdlToAVSCAsync(path: string) {
       if (err) {
         reject(new ConfluentSchemaRegistryError(`${err.message}. Caused by: ${err.path}`))
       } else {
-        resolve(schema)
+        resolve(schema as { [key: string]: any })
       }
     })
   })

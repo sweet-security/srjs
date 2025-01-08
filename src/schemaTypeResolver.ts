@@ -96,6 +96,6 @@ export const schemaFromConfluentSchema = (
 
     return schema
   } catch (err) {
-    throw new ConfluentSchemaRegistryArgumentError(err.message)
+    throw new ConfluentSchemaRegistryArgumentError(err)
   }
 }

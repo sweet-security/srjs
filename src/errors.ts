@@ -1,3 +1,4 @@
+import { ResponseError } from "api/middleware/errorMiddleware";
 class ConfluentSchemaRegistryError extends Error {
   constructor(error: any) {
     super(error.message || error)
@@ -23,4 +24,5 @@ export {
   ConfluentSchemaRegistryCompatibilityError,
   ConfluentSchemaRegistryInvalidSchemaError,
   ConfluentSchemaRegistryValidationError,
+  ResponseError,
 }
