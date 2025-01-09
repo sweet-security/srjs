@@ -56,7 +56,7 @@ const DEFAULT_OPTS = {
   separator: DEFAULT_SEPERATOR,
 }
 
-const METADATA_SEPARATOR = ":"
+// const METADATA_SEPARATOR = ":"
 
 export default class SchemaRegistry {
   private api: SchemaRegistryAPIClient
