@@ -55,6 +55,9 @@ const DEFAULT_OPTS = {
   compatibility: COMPATIBILITY.BACKWARD,
   separator: DEFAULT_SEPERATOR,
 }
+
+const METADATA_SEPARATOR = ":"
+
 export default class SchemaRegistry {
   private api: SchemaRegistryAPIClient
   private cacheMissRequests: { [key: number]: Promise<Response> } = {}
@@ -146,13 +149,20 @@ export default class SchemaRegistry {
       }
     }
 
+    let formattedMetadata = undefined
+    if (confluentSchema.metadata) {
+      const key = Object.keys(confluentSchema.metadata.properties).join(METADATA_SEPARATOR)
+      const value = Object.values(confluentSchema.metadata.properties).join(METADATA_SEPARATOR)
+      formattedMetadata = { properties: { [key]: value } }
+    }    
+
     const response = await this.api.Subject.register({
       subject: subject.name,
       body: {
         schemaType: confluentSchema.type === SchemaType.AVRO ? undefined : confluentSchema.type,
         schema: confluentSchema.schema,
         references: confluentSchema.references,
-        metadata: confluentSchema.metadata,
+        metadata: formattedMetadata,
       },
     })
 
@@ -171,14 +181,11 @@ export default class SchemaRegistry {
     subject: string,
     metadata: Record<string, string>,
   ): Promise<number> {
-    // mappersmith does not support multiple query parameters with the same name but the Schema Registry API requires it
-    const queryParamsString = Object.entries(metadata)
-      .map(([key, value], index) => {
-        if (index === 0) return `${key}&value=${value}` // the first `key=` will be added by mappersmith
-        return `key=${key}&value=${value}`
-      })
-      .join('&')
-    const response = await this.api.Subject.metadata({ subject, key: queryParamsString })
+    // mappersmith does not support multiple query parameters with the same name but the Schema Registry API requires it.
+    // concatenating the keys and values will bypass this
+    const key = Object.keys(metadata).join(METADATA_SEPARATOR)
+    const value = Object.values(metadata).join(METADATA_SEPARATOR)
+    const response = await this.api.Subject.metadata({ subject, key, value })
     const { id } = response.data<{
       subject: string
       version: number
