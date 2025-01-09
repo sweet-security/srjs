@@ -1,6 +1,6 @@
 {
   "name": "@sweet-security/srjs",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "main": "dist/index.js",
   "description": "SRJS extends the KafkaJS Confluent Schema Registry to utilize more of the Schema Registry API",
   "keywords": [
