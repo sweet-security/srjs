@@ -12,7 +12,6 @@
     "url": "https://github.com/sweet-security/srjs.git"
   },
   "scripts": {
-    "prepare:release": "./pipeline/prepareRelease.sh",
     "build": "rm -rf ./dist && tsc",
     "build:watch": "rm -rf ./dist && tsc --watch",
     "lint": "eslint './src/**/*.ts'"

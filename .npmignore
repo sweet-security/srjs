@@ -2,8 +2,6 @@
 test-report.xml
 junit.xml
 coverage/
-__tests__
-__snapshots__
 pipeline/
 .prettierrc
 .prettierignore
@@ -13,6 +11,7 @@ pipeline/
 *.svg
 *.tgz
 .vscode/
-.tsconfig.json
+tsconfig.json
 *.swp
 *~
+src/
