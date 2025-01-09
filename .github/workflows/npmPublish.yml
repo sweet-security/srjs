@@ -19,8 +19,8 @@ jobs:
                   node-version: '22.x'
                   registry-url: 'https://registry.npmjs.org'
                   scope: '@sweet-security'
-            - run: npm ci
-            - run: npm run build
-            - run: npm publish --provenance --access public
+            - run: npm unpublish
+            # - run: npm run build
+            # - run: npm publish --provenance --access public
               env:
                   NODE_AUTH_TOKEN: ${{secrets.SWEET_SECURITY_NPM_TOKEN}}
