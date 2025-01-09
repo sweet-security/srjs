@@ -149,12 +149,12 @@ export default class SchemaRegistry {
       }
     }
 
-    let formattedMetadata = undefined
-    if (confluentSchema.metadata) {
-      const key = Object.keys(confluentSchema.metadata.properties).join(METADATA_SEPARATOR)
-      const value = Object.values(confluentSchema.metadata.properties).join(METADATA_SEPARATOR)
-      formattedMetadata = { properties: { [key]: value } }
-    }    
+    // let formattedMetadata = undefined
+    // if (confluentSchema.metadata) {
+    //   const key = Object.keys(confluentSchema.metadata.properties).join(METADATA_SEPARATOR)
+    //   const value = Object.values(confluentSchema.metadata.properties).join(METADATA_SEPARATOR)
+    //   formattedMetadata = { properties: { [key]: value } }
+    // }    
 
     const response = await this.api.Subject.register({
       subject: subject.name,
@@ -162,7 +162,7 @@ export default class SchemaRegistry {
         schemaType: confluentSchema.type === SchemaType.AVRO ? undefined : confluentSchema.type,
         schema: confluentSchema.schema,
         references: confluentSchema.references,
-        metadata: formattedMetadata,
+        metadata: confluentSchema.metadata,
       },
     })
 
@@ -183,9 +183,9 @@ export default class SchemaRegistry {
   ): Promise<number> {
     // mappersmith does not support multiple query parameters with the same name but the Schema Registry API requires it.
     // concatenating the keys and values will bypass this
-    const key = Object.keys(metadata).join(METADATA_SEPARATOR)
-    const value = Object.values(metadata).join(METADATA_SEPARATOR)
-    const response = await this.api.Subject.metadata({ subject, key, value })
+    // const key = Object.keys(metadata).join(METADATA_SEPARATOR)
+    // const value = Object.values(metadata).join(METADATA_SEPARATOR)
+    const response = await this.api.Subject.metadata({ subject, key: Object.keys(metadata), value: Object.values(metadata) })
     const { id } = response.data<{
       subject: string
       version: number
