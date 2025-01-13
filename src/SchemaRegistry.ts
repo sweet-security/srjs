@@ -114,6 +114,16 @@ export default class SchemaRegistry {
     await this.api.Subject.updateConfig({ subject: subject, body: config })
   }
 
+  public async isCompatible(schema: ConfluentSchema, subject: string, version: number) {
+    const body = { ...schema }
+    const response: Response<{ is_compatible: boolean }> = await this.api.Subject.compatible({
+      subject,
+      version,
+      body,
+    })
+    return response.data().is_compatible
+  }
+
   private isConfluentSchema(
     schema: RawAvroSchema | AvroSchema | ConfluentSchema,
   ): schema is ConfluentSchema {
