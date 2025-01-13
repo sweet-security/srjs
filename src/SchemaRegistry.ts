@@ -3,7 +3,7 @@ import { Response } from 'mappersmith'
 
 import { encode, MAGIC_BYTE } from './wireEncoder'
 import decode from './wireDecoder'
-import { COMPATIBILITY, DEFAULT_SEPERATOR } from './constants'
+import { COMPATIBILITY, DEFAULT_API_CLIENT_ID, DEFAULT_SEPERATOR } from './constants'
 import API, { SchemaRegistryAPIClientArgs, SchemaRegistryAPIClient } from './api'
 import Cache from './cache'
 import {
@@ -27,12 +27,16 @@ import {
   SchemaHelper,
   SchemaReference,
   LegacyOptions,
+  SchemaMetadata,
 } from './@types'
 import {
   helperTypeFromSchemaType,
   schemaTypeFromString,
   schemaFromConfluentSchema,
 } from './schemaTypeResolver'
+import axios, { AxiosInstance, AxiosResponse } from 'axios'
+import { userAgentHeader } from 'api/middleware/userAgent'
+import { confluentHeaders } from 'api/middleware/confluentEncoderMiddleware'
 
 export interface RegisteredSchema {
   id: number
@@ -51,15 +55,22 @@ interface DecodeOptions {
   [SchemaType.AVRO]?: AvroDecodeOptions
 }
 
+interface ConfigRequest {
+  alias?: string
+  compatibility?: COMPATIBILITY
+  compatibilityGroup?: string
+  defaultMetadata?: SchemaMetadata
+  overrideMetadata?: SchemaMetadata
+}
+
 const DEFAULT_OPTS = {
   compatibility: COMPATIBILITY.BACKWARD,
   separator: DEFAULT_SEPERATOR,
 }
 
-// const METADATA_SEPARATOR = ":"
-
 export default class SchemaRegistry {
   private api: SchemaRegistryAPIClient
+  private alternateApi: AxiosInstance
   private cacheMissRequests: { [key: number]: Promise<Response> } = {}
   private options: SchemaRegistryAPIClientOptions | undefined
 
@@ -70,8 +81,37 @@ export default class SchemaRegistry {
     options?: SchemaRegistryAPIClientOptions,
   ) {
     this.api = API({ auth, clientId, host, retry, agent })
+    // mappersmith does not support multiple query parameters with the same name but the Schema Registry API requires it.
+    this.alternateApi = axios.create({
+      baseURL: host,
+      headers: {
+        ...userAgentHeader(clientId),
+        ...confluentHeaders(),
+      },
+    })
     this.cache = new Cache()
     this.options = options
+  }
+
+  public async getLatestVersionByMetadata(subject: string, metadata: SchemaMetadata) {
+    const params = new URLSearchParams()
+    Object.entries(metadata).forEach(([key, value]) => {
+      params.append('key', key)
+      params.append('value', value)
+    })
+    const response: AxiosResponse<{
+      subject: string
+      version: number
+      id: number
+      metadata: SchemaMetadata
+      schema: string
+    }> = await this.alternateApi.get(`/subjects/${subject}/metadata`, { params })
+
+    return response.data
+  }
+
+  public async updateSubjectConfig(subject: string, config: ConfigRequest) {
+    await this.api.Subject.updateConfig({ subject: subject, body: config })
   }
 
   private isConfluentSchema(
@@ -149,13 +189,6 @@ export default class SchemaRegistry {
       }
     }
 
-    // let formattedMetadata = undefined
-    // if (confluentSchema.metadata) {
-    //   const key = Object.keys(confluentSchema.metadata.properties).join(METADATA_SEPARATOR)
-    //   const value = Object.values(confluentSchema.metadata.properties).join(METADATA_SEPARATOR)
-    //   formattedMetadata = { properties: { [key]: value } }
-    // }    
-
     const response = await this.api.Subject.register({
       subject: subject.name,
       body: {
@@ -175,26 +208,6 @@ export default class SchemaRegistry {
     this.cache.setSchema(registeredSchema.id, confluentSchema.type, schemaInstance)
 
     return registeredSchema
-  }
-
-  public async getLatestVersionByMetadata(
-    subject: string,
-    metadata: Record<string, string>,
-  ): Promise<number> {
-    // mappersmith does not support multiple query parameters with the same name but the Schema Registry API requires it.
-    // concatenating the keys and values will bypass this
-    // const key = Object.keys(metadata).join(METADATA_SEPARATOR)
-    // const value = Object.values(metadata).join(METADATA_SEPARATOR)
-    const response = await this.api.Subject.metadata({ subject, key: Object.keys(metadata), value: Object.values(metadata) })
-    const { id } = response.data<{
-      subject: string
-      version: number
-      id: number
-      metadata: { properties: Record<string, string> }
-      schema: string
-    }>()
-
-    return id
   }
 
   private async updateOptionsWithSchemaReferences(
@@ -291,7 +304,9 @@ export default class SchemaRegistry {
   }
 
   public async getSchema(registryId: number): Promise<Schema | AvroSchema> {
-    return await (await this._getSchema(registryId)).schema
+    return await (
+      await this._getSchema(registryId)
+    ).schema
   }
 
   public async encode(registryId: number, payload: any): Promise<Buffer> {
@@ -316,7 +331,7 @@ export default class SchemaRegistry {
   private collectInvalidPaths(schema: Schema, jsonPayload: object) {
     const paths: string[][] = []
     schema.isValid(jsonPayload, {
-      errorHook: path => paths.push(path),
+      errorHook: (path) => paths.push(path),
     })
 
     return paths

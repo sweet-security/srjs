@@ -12,7 +12,7 @@ const updateContentType = (response: Response) =>
   })
 
 const confluentEncoderMiddleware: Middleware = () => ({
-  request: req => {
+  request: (req) => {
     try {
       if (req.body()) {
         return req.enhance({
@@ -25,12 +25,16 @@ const confluentEncoderMiddleware: Middleware = () => ({
     return req.enhance({ headers: REQUEST_HEADERS })
   },
 
-  response: next =>
+  response: (next) =>
     next()
       .then(updateContentType)
       .catch((response: Response) => {
         throw updateContentType(response)
       }),
 })
+
+export const confluentHeaders = () => {
+  return REQUEST_HEADERS
+}
 
 export default confluentEncoderMiddleware

@@ -52,6 +52,10 @@ export interface Schema {
   ): boolean
 }
 
+export interface SchemaMetadata {
+  properties: Record<string, string>
+}
+
 export interface RawAvroSchema {
   name: string
   namespace?: string
@@ -72,7 +76,7 @@ export interface AvroConfluentSchema {
   type: SchemaType.AVRO
   schema: string | RawAvroSchema
   references?: SchemaReference[]
-  metadata?: { properties: Record<string, string> }
+  metadata?: SchemaMetadata
 }
 
 export type SchemaReference = {
@@ -84,13 +88,13 @@ export interface ProtoConfluentSchema {
   type: SchemaType.PROTOBUF
   schema: string
   references?: SchemaReference[]
-  metadata?: { properties: Record<string, string> }
+  metadata?: SchemaMetadata
 }
 export interface JsonConfluentSchema {
   type: SchemaType.JSON
   schema: string
   references?: SchemaReference[]
-  metadata?: { properties: Record<string, string> }
+  metadata?: SchemaMetadata
 }
 export interface SchemaResponse {
   schema: string

@@ -39,7 +39,6 @@ export type SchemaRegistryAPIClient = Client<{
     register: (_: any) => any
     registered: (_: any) => any
     compatible: (_: any) => any
-    metadata: (_: any) => any
   }
 }>
 
@@ -106,17 +105,13 @@ export default ({
           path: '/compatibility/subjects/{subject}/versions/{version}',
           params: { version: 'latest' },
         },
-        metadata: {
-          method: 'get',
-          path: '/subjects/{subject}/metadata',
-        },
       },
     },
   }
   // if an agent was provided, bind the agent to the mappersmith configs
   if (agent) {
     // gatewayConfigs is not listed as a type on manifest object in mappersmith
-    ;((manifest as unknown) as { gatewayConfigs: Partial<GatewayConfiguration> }).gatewayConfigs = {
+    ;(manifest as unknown as { gatewayConfigs: Partial<GatewayConfiguration> }).gatewayConfigs = {
       HTTP: {
         configure: () => ({ agent }),
       },
