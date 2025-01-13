@@ -1,4 +1,4 @@
-import { Middleware, MiddlewareParams } from 'mappersmith'
+import { Middleware } from 'mappersmith'
 import { DEFAULT_API_CLIENT_ID } from '../../constants'
 
 const product = '@kafkajs/confluent-schema-registry'

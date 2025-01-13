@@ -3,7 +3,7 @@ import { Response } from 'mappersmith'
 
 import { encode, MAGIC_BYTE } from './wireEncoder'
 import decode from './wireDecoder'
-import { COMPATIBILITY, DEFAULT_API_CLIENT_ID, DEFAULT_SEPERATOR } from './constants'
+import { COMPATIBILITY, DEFAULT_SEPERATOR } from './constants'
 import API, { SchemaRegistryAPIClientArgs, SchemaRegistryAPIClient } from './api'
 import Cache from './cache'
 import {
