@@ -11,3 +11,5 @@ export enum COMPATIBILITY {
 export const DEFAULT_SEPERATOR = '.'
 
 export const DEFAULT_API_CLIENT_ID = 'Confluent_Schema_Registry'
+
+export const MAJOR_VERSION_KEY = 'majorVersion'

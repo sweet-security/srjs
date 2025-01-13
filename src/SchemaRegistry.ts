@@ -3,7 +3,7 @@ import { Response } from 'mappersmith'
 
 import { encode, MAGIC_BYTE } from './wireEncoder'
 import decode from './wireDecoder'
-import { COMPATIBILITY, DEFAULT_SEPERATOR } from './constants'
+import { COMPATIBILITY, MAJOR_VERSION_KEY, DEFAULT_SEPERATOR } from './constants'
 import API, { SchemaRegistryAPIClientArgs, SchemaRegistryAPIClient } from './api'
 import Cache from './cache'
 import {
@@ -45,6 +45,7 @@ export interface RegisteredSchema {
 interface Opts {
   compatibility?: COMPATIBILITY
   separator?: string
+  breakingChange?: boolean
   subject: string
 }
 
@@ -66,6 +67,8 @@ interface ConfigRequest {
 const DEFAULT_OPTS = {
   compatibility: COMPATIBILITY.BACKWARD,
   separator: DEFAULT_SEPERATOR,
+  compatibilityGroup: MAJOR_VERSION_KEY,
+  breakingChange: false,
 }
 
 export default class SchemaRegistry {
@@ -163,7 +166,10 @@ export default class SchemaRegistry {
     schema: RawAvroSchema | ConfluentSchema,
     userOpts?: Opts,
   ): Promise<RegisteredSchema> {
-    const { compatibility, separator } = { ...DEFAULT_OPTS, ...userOpts }
+    const { compatibility, separator, compatibilityGroup, breakingChange } = {
+      ...DEFAULT_OPTS,
+      ...userOpts,
+    }
 
     const confluentSchema: ConfluentSchema = this.getConfluentSchema(schema)
 
@@ -198,6 +204,10 @@ export default class SchemaRegistry {
         throw error
       }
     }
+    const majorVersionProps = { [MAJOR_VERSION_KEY]: new Date().toISOString() }
+    const metadata = isFirstTimeRegistration
+      ? { properties: { ...majorVersionProps, ...confluentSchema.metadata } }
+      : confluentSchema.metadata
 
     const response = await this.api.Subject.register({
       subject: subject.name,
@@ -205,12 +215,28 @@ export default class SchemaRegistry {
         schemaType: confluentSchema.type === SchemaType.AVRO ? undefined : confluentSchema.type,
         schema: confluentSchema.schema,
         references: confluentSchema.references,
-        metadata: confluentSchema.metadata,
+        metadata,
       },
     })
 
     if (compatibility && isFirstTimeRegistration) {
-      await this.api.Subject.updateConfig({ subject: subject.name, body: { compatibility } })
+      await this.api.Subject.updateConfig({
+        subject: subject.name,
+        body: {
+          compatibility,
+          compatibilityGroup,
+          overrideMetadata: { properties: majorVersionProps },
+        },
+      })
+    } else if (breakingChange) {
+      await this.api.Subject.updateConfig({
+        subject: subject.name,
+        body: {
+          compatibility,
+          compatibilityGroup,
+          overrideMetadata: { properties: majorVersionProps },
+        },
+      })
     }
 
     const registeredSchema: RegisteredSchema = response.data()
