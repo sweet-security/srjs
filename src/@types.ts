@@ -1,6 +1,7 @@
 import { Resolver, ForSchemaOptions, Type } from 'avsc'
 import { ValidateFunction } from './JsonSchema'
 import Ajv from 'ajv'
+import { MAJOR_VERSION_KEY } from "./constants";
 
 export enum SchemaType {
   AVRO = 'AVRO',
@@ -53,7 +54,12 @@ export interface Schema {
 }
 
 export interface SchemaMetadata {
-  properties: Record<string, string>
+  properties: {
+    entryType: string,
+    [MAJOR_VERSION_KEY]: string,
+    entryMinorVersion: string,
+    [key: string]: string,
+  }
 }
 
 export interface RawAvroSchema {

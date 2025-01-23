@@ -43,10 +43,8 @@ export interface RegisteredSchema {
 }
 
 interface Opts {
-  compatibility?: COMPATIBILITY
   separator?: string
-  breakingChange?: boolean
-  subject: string
+  subject: string,
 }
 
 interface AvroDecodeOptions {
@@ -65,10 +63,9 @@ interface ConfigRequest {
 }
 
 const DEFAULT_OPTS = {
-  compatibility: COMPATIBILITY.BACKWARD,
+  compatibility: COMPATIBILITY.FORWARD,
   separator: DEFAULT_SEPERATOR,
   compatibilityGroup: MAJOR_VERSION_KEY,
-  breakingChange: false,
 }
 
 export default class SchemaRegistry {
@@ -151,25 +148,10 @@ export default class SchemaRegistry {
   }
 
   public async register(
-    schema: Exclude<ConfluentSchema, AvroConfluentSchema>,
-    userOpts: Opts,
-  ): Promise<RegisteredSchema>
-  public async register(
-    schema: RawAvroSchema | AvroConfluentSchema,
-    userOpts?: Omit<Opts, 'subject'> & { subject?: string },
-  ): Promise<RegisteredSchema>
-  public async register(
-    schema: RawAvroSchema | ConfluentSchema,
-    userOpts: Opts,
-  ): Promise<RegisteredSchema>
-  public async register(
-    schema: RawAvroSchema | ConfluentSchema,
-    userOpts?: Opts,
+    schema: AvroConfluentSchema,
+    subject: string,
   ): Promise<RegisteredSchema> {
-    const { compatibility, separator, compatibilityGroup, breakingChange } = {
-      ...DEFAULT_OPTS,
-      ...userOpts,
-    }
+    const { compatibility, compatibilityGroup } = DEFAULT_OPTS
 
     const confluentSchema: ConfluentSchema = this.getConfluentSchema(schema)
 
@@ -179,17 +161,9 @@ export default class SchemaRegistry {
     const schemaInstance = schemaFromConfluentSchema(confluentSchema, options)
     helper.validate(schemaInstance)
     let isFirstTimeRegistration = false
-    let subject: ConfluentSubject
-    if (userOpts?.subject) {
-      subject = {
-        name: userOpts.subject,
-      }
-    } else {
-      subject = helper.getSubject(confluentSchema, schemaInstance, separator)
-    }
 
     try {
-      const response = await this.api.Subject.config({ subject: subject.name })
+      const response = await this.api.Subject.config({ subject })
       const { compatibilityLevel }: { compatibilityLevel: COMPATIBILITY } = response.data()
 
       if (compatibilityLevel.toUpperCase() !== compatibility) {
@@ -204,43 +178,29 @@ export default class SchemaRegistry {
         throw error
       }
     }
-    const majorVersionProps = { [MAJOR_VERSION_KEY]: new Date().toISOString() }
-    const metadata = isFirstTimeRegistration
-      ? { properties: { ...majorVersionProps, ...confluentSchema.metadata } }
-      : confluentSchema.metadata
 
     const response = await this.api.Subject.register({
-      subject: subject.name,
+      subject,
       body: {
         schemaType: confluentSchema.type === SchemaType.AVRO ? undefined : confluentSchema.type,
         schema: confluentSchema.schema,
         references: confluentSchema.references,
-        metadata,
+        metadata: confluentSchema.metadata,
       },
     })
 
     if (compatibility && isFirstTimeRegistration) {
       await this.api.Subject.updateConfig({
-        subject: subject.name,
+        subject,
         body: {
           compatibility,
           compatibilityGroup,
-          overrideMetadata: { properties: majorVersionProps },
-        },
-      })
-    } else if (breakingChange) {
-      await this.api.Subject.updateConfig({
-        subject: subject.name,
-        body: {
-          compatibility,
-          compatibilityGroup,
-          overrideMetadata: { properties: majorVersionProps },
         },
       })
     }
 
     const registeredSchema: RegisteredSchema = response.data()
-    this.cache.setLatestRegistryId(subject.name, registeredSchema.id)
+    this.cache.setLatestRegistryId(subject, registeredSchema.id)
     this.cache.setSchema(registeredSchema.id, confluentSchema.type, schemaInstance)
 
     return registeredSchema
@@ -251,7 +211,7 @@ export default class SchemaRegistry {
     options?: SchemaRegistryAPIClientOptions,
   ) {
     const helper = helperTypeFromSchemaType(schema.type)
-    const referencedSchemas = await this.getreferencedSchemas(schema, helper)
+    const referencedSchemas = await this.getReferencedSchemas(schema, helper)
 
     const protocolOptions = this.asProtocolOptions(options)
     return helper.updateOptionsFromSchemaReferences(referencedSchemas, protocolOptions)
@@ -266,15 +226,15 @@ export default class SchemaRegistry {
     }
   }
 
-  private async getreferencedSchemas(
+  private async getReferencedSchemas(
     schema: ConfluentSchema,
     helper: SchemaHelper,
   ): Promise<ConfluentSchema[]> {
     const referencesSet = new Set<string>()
-    return this.getreferencedSchemasRecursive(schema, helper, referencesSet)
+    return this.getReferencedSchemasRecursive(schema, helper, referencesSet)
   }
 
-  private async getreferencedSchemasRecursive(
+  private async getReferencedSchemasRecursive(
     schema: ConfluentSchema,
     helper: SchemaHelper,
     referencesSet: Set<string>,
@@ -283,13 +243,13 @@ export default class SchemaRegistry {
 
     let referencedSchemas: ConfluentSchema[] = []
     for (const reference of references) {
-      const schemas = await this.getreferencedSchemasFromReference(reference, helper, referencesSet)
+      const schemas = await this.getReferencedSchemasFromReference(reference, helper, referencesSet)
       referencedSchemas = referencedSchemas.concat(schemas)
     }
     return referencedSchemas
   }
 
-  async getreferencedSchemasFromReference(
+  async getReferencedSchemasFromReference(
     reference: SchemaReference,
     helper: SchemaHelper,
     referencesSet: Set<string>,
@@ -307,7 +267,7 @@ export default class SchemaRegistry {
     const foundSchema = versionResponse.data() as SchemaResponse
 
     const schema = helper.toConfluentSchema(foundSchema)
-    const referencedSchemas = await this.getreferencedSchemasRecursive(
+    const referencedSchemas = await this.getReferencedSchemasRecursive(
       schema,
       helper,
       referencesSet,
