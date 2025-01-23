@@ -19,7 +19,6 @@ import {
   AvroSchema,
   SchemaType,
   ConfluentSchema,
-  ConfluentSubject,
   SchemaRegistryAPIClientOptions,
   AvroConfluentSchema,
   SchemaResponse,
@@ -40,11 +39,6 @@ import { confluentHeaders } from 'api/middleware/confluentEncoderMiddleware'
 
 export interface RegisteredSchema {
   id: number
-}
-
-interface Opts {
-  separator?: string
-  subject: string,
 }
 
 interface AvroDecodeOptions {
