@@ -34,8 +34,8 @@ import {
   schemaFromConfluentSchema,
 } from './schemaTypeResolver'
 import axios, { AxiosInstance, AxiosResponse } from 'axios'
-import { userAgentHeader } from 'api/middleware/userAgent'
-import { confluentHeaders } from 'api/middleware/confluentEncoderMiddleware'
+import { userAgentHeader } from './api/middleware/userAgent'
+import { confluentHeaders } from './api/middleware/confluentEncoderMiddleware'
 
 export interface RegisteredSchema {
   id: number
@@ -88,8 +88,13 @@ export default class SchemaRegistry {
   }
 
   public async getLatestVersionByMetadata(subject: string, metadata: SchemaMetadata) {
+    const cacheResult = this.cache.getRegistryIdByMetadata(subject, metadata)
+    if (cacheResult) {
+      return cacheResult
+    }
+
     const params = new URLSearchParams()
-    Object.entries(metadata).forEach(([key, value]) => {
+    Object.entries(metadata.properties).forEach(([key, value]) => {
       params.append('key', key)
       params.append('value', value)
     })
@@ -101,7 +106,8 @@ export default class SchemaRegistry {
       schema: string
     }> = await this.alternateApi.get(`/subjects/${subject}/metadata`, { params })
 
-    return response.data
+    this.cache.setRegistryIdByMetadata(subject, metadata, response.data.id)
+    return response.data.id
   }
 
   public async updateSubjectConfig(subject: string, config: ConfigRequest) {
@@ -196,6 +202,7 @@ export default class SchemaRegistry {
     const registeredSchema: RegisteredSchema = response.data()
     this.cache.setLatestRegistryId(subject, registeredSchema.id)
     this.cache.setSchema(registeredSchema.id, confluentSchema.type, schemaInstance)
+    this.cache.setRegistryIdByMetadata(subject, confluentSchema.metadata!, registeredSchema.id)
 
     return registeredSchema
   }
@@ -420,5 +427,9 @@ export default class SchemaRegistry {
 
       return request
     }
+  }
+
+  public getSubjectByMetadata({ properties }: SchemaMetadata): string {
+    return `${properties.entryType}`
   }
 }
