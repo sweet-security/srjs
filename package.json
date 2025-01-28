@@ -24,6 +24,7 @@
     "protobufjs": ">= 6.11.4 < 8"
   },
   "devDependencies": {
+    "@sweet-security/kafkas": "^0.1.9",
     "@types/node": "^22.10.5",
     "@types/uuid": "^10.0.0",
     "@typescript-eslint/eslint-plugin": "^8.19.1",
