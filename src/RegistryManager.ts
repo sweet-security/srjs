@@ -75,7 +75,7 @@ export class RegistryManager {
       if (entryMinorVersion in versions[entryMajorVersion]) {
         return versions[entryMajorVersion][entryMinorVersion]
       }
-      const latestMinor = Object.keys(versions).reduce((max, c) => (c > max ? c : max))
+      const latestMinor = Object.keys(versions[entryMajorVersion]).reduce((max, c) => (c > max ? c : max))
       return versions[entryMajorVersion][latestMinor]
     }
     return null
