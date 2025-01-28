@@ -1,21 +1,21 @@
-import { SchemaRegistryAPIClientOptions } from '@types'
-import type { Message } from '@sweet-security/kafkas'
+import { SchemaRegistryAPIClientOptions } from './@types'
+import type { KafkaMessage } from '@sweet-security/kafkas'
 import { SchemaRegistryAPIClientArgs } from './api'
 import SchemaRegistry from './SchemaRegistry'
 
-export interface ParsedMessage<T> extends Omit<Message, 'value'> {
+export interface ParsedMessage<T> extends Omit<KafkaMessage, 'value'> {
   value: T
 }
-export type Handler = <T>(message: ParsedMessage<T>) => void
-export interface EntryToHandlers {
+export type Handler<T> = (message: ParsedMessage<T>) => Promise<void>
+export type EntryToHandlers = {
   [entryType: string]: {
     [entryMajorVersion: string]: {
-      [entryMinorVersion: string]: Handler
+      [entryMinorVersion: string]: Handler<any>
     }
   }
 }
 
-export class HandlerManager {
+export class RegistryManager {
   private readonly schemaRegistry: SchemaRegistry
   private readonly entryToHandlers: EntryToHandlers
 
@@ -40,7 +40,7 @@ export class HandlerManager {
     return await this.schemaRegistry.encode(id, payload)
   }
 
-  async handleMessage(message: Message): Promise<void> {
+  async handleMessage(message: KafkaMessage): Promise<void> {
     const { entryType, entryMajorVersion, entryMinorVersion } = message.headers as Record<
       string,
       string | undefined
@@ -67,7 +67,7 @@ export class HandlerManager {
     entryType: string,
     entryMajorVersion: string,
     entryMinorVersion: string,
-  ): Handler | null {
+  ): Handler<unknown> | null {
     const versions = this.entryToHandlers[entryType]
     if (!versions) return null
 
